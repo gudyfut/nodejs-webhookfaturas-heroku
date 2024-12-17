@@ -65,26 +65,6 @@ app.get('/get-invoices', async (req, res) => {
     }
 });
 
-const axios = require('axios');
-const httpsProxyAgent = require('https-proxy-agent'); // Biblioteca para usar o proxy.
-
-const fixieUrl = process.env.FIXIE_URL; // Obtém o URL do Fixie Socks
-const agent = new httpsProxyAgent(fixieUrl); // Configura o agente de proxy
-
-// Função para exibir o IP fixo
-async function exibirIpFixo() {
-    try {
-        const response = await axios.get('https://httpbin.org/ip', { httpsAgent: agent });
-        console.log(`IP fixo da aplicação (via Fixie Socks): ${response.data.origin}`);
-    } catch (error) {
-        console.error('Erro ao obter o IP fixo:', error.message);
-    }
-}
-
-// Chamada para obter o IP fixo ao iniciar o servidor
-exibirIpFixo();
-
-
 
 // Inicia o servidor na porta disponibilizada ou 3000
 app.listen(port, () => {
