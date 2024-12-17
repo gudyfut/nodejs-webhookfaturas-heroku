@@ -10,6 +10,8 @@
     "express": "^4.21.1",
     "node": "^18.20.5",
     "node-whmcs": "^1.0.3",
-    "whmcs": "^1.2.2"
+    "whmcs": "^1.2.2",
+    "axios": "^1.5.0",
+    "https-proxy-agent": "^5.0.1"
   }
 }
