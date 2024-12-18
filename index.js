@@ -65,24 +65,6 @@ app.get('/get-invoices', async (req, res) => {
     }
 });
 
-const axios = require('axios');
-const HttpsProxyAgent = require('https-proxy-agent');
-
-// Obtém a URL do proxy do Fixie Socks
-const proxyUrl = process.env.FIXIE_URL;
-const agent = new HttpsProxyAgent(proxyUrl);
-
-async function fazerRequisicao() {
-    try {
-        // Faz uma requisição usando o proxy
-        const response = await axios.get('https://httpbin.org/ip', { httpsAgent: agent });
-        console.log('Resposta da requisição via Fixie Socks:', response.data);
-    } catch (error) {
-        console.error('Erro ao fazer a requisição:', error.message);
-    }
-}
-
-fazerRequisicao();
 
 
 // Inicia o servidor na porta disponibilizada ou 3000
