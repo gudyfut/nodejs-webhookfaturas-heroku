@@ -1,25 +1,22 @@
 const express = require('express');
+const WHMCS = require('node-whmcs');
+const { SocksProxyAgent } = require('socks-proxy-agent'); // Importação correta do SocksProxyAgent
 const axios = require('axios');
-const SocksProxyAgent = require('socks-proxy-agent');
-const url = require('url');
-const WHMCS = require('node-whmcs'); // Se usar a biblioteca.
+require('dotenv').config(); // Certifique-se de ter o .env configurado
 
 const app = express();
 app.use(express.json());
 
 const port = process.env.PORT || 3000;
 
-// Parse a variável FIXIE_SOCKS_HOST
-const fixieUrl = process.env.FIXIE_SOCKS_HOST;
-const fixieParsed = new url.URL(`socks://${fixieUrl}`);
-const proxyAgent = new SocksProxyAgent({
-  hostname: fixieParsed.hostname, // Hostname do proxy
-  port: fixieParsed.port,         // Porta do proxy
-  username: fixieParsed.username, // Usuário do proxy
-  password: fixieParsed.password, // Senha do proxy
-});
+// Configuração do Fixie Socks
+const proxyUrl = process.env.FIXIE_SOCKS_HOST; // Certifique-se de que FIXIE_SOCKS_HOST está configurado no .env
+console.log(`Proxy URL: ${proxyUrl}`); // Para debug
 
-// Configurações do WHMCS
+// Criação do agente do proxy com SocksProxyAgent
+const proxyAgent = new SocksProxyAgent(`socks5://${proxyUrl}`);
+
+// Configuração WHMCS
 const config = {
     host: 'financeiro.goldenrastreamento.com.br', // alterei para o sistema em produção
     identifier: 'Lr6XJANaE52RUiNVuUftxh4ztnBEsNUp',
@@ -35,35 +32,24 @@ app.get('/get-invoices', async (req, res) => {
 
     try {
         // Busca o cliente pelo e-mail no WHMCS
-        const clientResponse = await axios.get(`https://${config.host}/api.php?action=GetClientsDetails&email=${email}`, {
-            httpsAgent: proxyAgent,
-        });
-
-        if (clientResponse.data.result === 'success' && clientResponse.data.userid) {
-            const clientId = clientResponse.data.userid; // ID do cliente retornado diretamente
+        const clientResponse = await wclient.call('GetClientsDetails', { email });
+        if (clientResponse.result === 'success' && clientResponse.userid) {
+            const clientId = clientResponse.userid; // ID do cliente retornado diretamente
             console.log(`Cliente encontrado: ${clientId}`);
 
             // Busca as faturas do cliente com status "Overdue"
-            const overdueInvoicesResponse = await axios.get(`https://${config.host}/api.php?action=GetInvoices&userid=${clientId}&status=Overdue`, {
-                httpsAgent: proxyAgent,
-            });
-            const overdueInvoices = overdueInvoicesResponse.data.invoices || [];
-            const overdueInvoicesQnt = overdueInvoices.length;
+            const overdueInvoicesResponse = await wclient.call('GetInvoices', { userid: clientId, status: "Overdue" });
+            let overdueInvoicesQnt = overdueInvoicesResponse.length;
 
             // Busca as faturas do cliente com status "Unpaid"
-            const unpaidInvoicesResponse = await axios.get(`https://${config.host}/api.php?action=GetInvoices&userid=${clientId}&status=Unpaid`, {
-                httpsAgent: proxyAgent,
-            });
-            const unpaidInvoices = unpaidInvoicesResponse.data.invoices || [];
-            const unpaidInvoicesQnt = unpaidInvoices.length;
+            const unpaidInvoicesResponse = await wclient.call('GetInvoices', { userid: clientId, status: "Unpaid" });
+            const unpaidInvoicesQnt = unpaidInvoicesResponse.length;
 
-            // Pega o id da primeira fatura Unpaid, se existir
-            const invoiceId = unpaidInvoices.length > 0 ? unpaidInvoices[0].id : null;
+            // Pega o id da primeira fatura Unpaid
+            const invoiceId = unpaidInvoicesResponse[0].id;
 
             // Faz o link do invoice
-            const invoiceLink = invoiceId
-                ? `https://financeiro.goldenrastreamento.com.br/viewinvoice.php?id=${invoiceId}`
-                : null;
+            const invoiceLink = `https://financeiro.goldenrastreamento.com.br/viewinvoice.php?id=${invoiceId}`;
 
             if (overdueInvoicesQnt > 0) {
                 console.log(`Faturas Overdue encontradas: ${overdueInvoicesQnt}`);
@@ -72,7 +58,7 @@ app.get('/get-invoices', async (req, res) => {
                     overdues: overdueInvoicesQnt,
                     quantity: unpaidInvoicesQnt,
                     invoiceLink: invoiceLink,
-                    invoices: unpaidInvoices,
+                    invoices: unpaidInvoicesResponse
                 });
             } else {
                 console.log('Nenhuma fatura Overdue encontrada');
@@ -81,11 +67,18 @@ app.get('/get-invoices', async (req, res) => {
                     overdues: 0,
                     quantity: unpaidInvoicesQnt,
                     invoiceLink: invoiceLink,
-                    invoices: unpaidInvoices,
+                    invoices: unpaidInvoicesResponse
                 });
             }
+
+            if (unpaidInvoicesResponse.length > 0) {
+                console.log(`Faturas Unpaid encontradas: ${unpaidInvoicesResponse.length}`);
+            } else {
+                console.error('Nenhuma fatura encontrada para o cliente');
+                res.status(404).send('Nenhuma fatura encontrada');
+            }
         } else {
-            console.error('Cliente não encontrado ou erro na busca:', clientResponse.data.message);
+            console.error('Cliente não encontrado ou erro na busca:', clientResponse.message);
             res.json({ clientfound: 0 });
         }
     } catch (error) {
@@ -94,20 +87,21 @@ app.get('/get-invoices', async (req, res) => {
     }
 });
 
-// Endpoint para testar o IP de saída
-app.get('/test-ip', async (req, res) => {
+// Teste do Fixie Socks com Axios
+app.get('/test-proxy', async (req, res) => {
     try {
         const response = await axios.get('https://httpbin.org/ip', {
-            httpsAgent: proxyAgent,
+            httpsAgent: proxyAgent // Usa o proxy configurado
         });
-        res.json({ ip: response.data });
+        console.log('Resposta da requisição via Fixie Socks:', response.data);
+        res.json(response.data);
     } catch (error) {
-        console.error('Erro ao obter o IP de saída:', error.message);
-        res.status(500).send('Erro ao obter o IP de saída');
+        console.error('Erro ao fazer a requisição:', error.message);
+        res.status(500).send('Erro ao conectar via proxy');
     }
 });
 
 // Inicia o servidor na porta disponibilizada ou 3000
 app.listen(port, () => {
-    console.log('Servidor rodando');
+    console.log('Servidor rodando na porta', port);
 });
