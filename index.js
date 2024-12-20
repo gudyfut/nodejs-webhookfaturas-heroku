@@ -65,16 +65,6 @@ app.get('/get-invoices', async (req, res) => {
     }
 });
 
-const axios = require('axios');
-
-// Faça uma requisição para verificar o IP de saída
-axios.get('https://httpbin.org/ip', { httpsAgent: socksAgent })
-  .then(response => {
-    console.log('IP de saída:', response.data);
-  })
-  .catch(error => {
-    console.error('Erro ao verificar IP:', error.message);
-  });
 
 // Inicia o servidor na porta disponibilizada ou 3000
 app.listen(port, () => {
