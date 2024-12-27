@@ -56,7 +56,7 @@ app.get('/get-invoices', async (req, res) => {
 
             // Busca as faturas do cliente com status "Overdue"
             const overdueInvoicesResponse = await whmcsApiCall('GetInvoices', { userid: clientId, status: "Overdue" });
-            const overdueInvoicesQnt = overdueInvoicesResponse.invoices ? overdueInvoicesResponse.invoices.length : 0;
+            let overdueInvoicesQnt = overdueInvoicesResponse.invoices ? overdueInvoicesResponse.invoices.length : 0;
 
             // Busca as faturas do cliente com status "Unpaid"
             const unpaidInvoicesResponse = await whmcsApiCall('GetInvoices', { userid: clientId, status: "Unpaid" });
